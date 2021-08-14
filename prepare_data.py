@@ -1,10 +1,10 @@
 import os
 import logging
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Optional
 
 import torch
-import nlp
+from datasets import load_dataset
 from transformers import T5Tokenizer, BartTokenizer, HfArgumentParser
 
 
@@ -108,30 +108,36 @@ class DataProcessor:
 
         return encodings
 
+def process_qg_text(example):
+    context, question, answer = (
+        example["context"],
+        example["question"],
+        example["answers"],
+    )
+    if isinstance(answer["text"], str):
+        answer_text = answer["text"].strip()
+    else:
+        answer_text = answer["text"][0].strip()
 
-def filter_qa(example):
-    return example['task'] == 'qa'
+    que_gen_input = f"answer: {answer_text}  context: {context}"
 
-def filter_qg(example):
-    return example['task'] == 'qg'
-
-def filter_e2e_qg(example):
-    return example['task'] == 'e2e_qg'
-
-def filter_ans_ext(example):
-    return example['task'] == 'ans_ext'
-
-def filter_multi(example):
-    return example['task'] != 'e2e_qg'
+    que_gen_target = f"{question}"
+    return {"source_text": que_gen_input, "target_text": que_gen_target}
 
 
-TASK_TO_FILTER_FN = {
-    'qa': filter_qa,
-    'qg': filter_qg,
-    'e2e_qg': filter_e2e_qg,
-    'ans_ext': filter_ans_ext,
-    'multi': filter_multi
-}
+class QGDataset:
+    def __init__(self):
+        self.dataset = load_dataset("deepset/germanquad")
+        self.dataset = self.dataset.map(process_qg_text)
+
+    @property
+    def train(self):
+        return self.dataset["train"]
+
+    @property
+    def test(self):
+        return self.dataset["test"]
+
 
 
 def main():
@@ -151,9 +157,10 @@ def main():
         tokenizer = BartTokenizer.from_pretrained("facebook/bart-base")
     
     tokenizer.add_tokens(['<sep>', '<hl>'])
-    
-    train_dataset = nlp.load_dataset(data_args.dataset_path, name=data_args.qg_format, split=nlp.Split.TRAIN)
-    valid_dataset = nlp.load_dataset(data_args.dataset_path, name=data_args.qg_format, split=nlp.Split.VALIDATION)
+
+    qg_dataset = QGDataset()
+    train_dataset = qg_dataset.train
+    valid_dataset = qg_dataset.test
 
     processor = DataProcessor(
         tokenizer,
@@ -162,14 +169,6 @@ def main():
         max_target_length=data_args.max_target_length
     )
 
-    train_dataset = train_dataset.filter(TASK_TO_FILTER_FN[data_args.task])
-    if data_args.task == 'multi' and data_args.valid_for_qg_only:
-        logger.info("processing valid data only for qg task")
-        valid_dataset = valid_dataset.filter(filter_qg)
-    else:
-        valid_dataset = valid_dataset.filter(TASK_TO_FILTER_FN[data_args.task])
-
-    
     train_dataset = processor.process(train_dataset)
     valid_dataset = processor.process(valid_dataset)
 
