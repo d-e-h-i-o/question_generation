@@ -167,7 +167,6 @@ def main(args_file=None):
     
     train_dataset = torch.load(data_args.train_file_path) if training_args.do_train else None
     valid_dataset = torch.load(data_args.valid_file_path) if training_args.do_eval else None
-    
     logger.info('finished loading dataset')
 
     # Initialize data_collator
@@ -177,7 +176,7 @@ def main(args_file=None):
         mode="training",
         using_tpu=training_args.tpu_num_cores is not None
     )
-
+    training_args.prediction_loss_only = True
     # Initialize our Trainer
     trainer = Trainer(
         model=model,
@@ -185,7 +184,6 @@ def main(args_file=None):
         train_dataset=train_dataset,
         eval_dataset=valid_dataset,
         data_collator=data_collator,
-        prediction_loss_only=True,
         label_smoothing=model_args.label_smoothing
     )
 
