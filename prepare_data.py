@@ -68,7 +68,7 @@ class DataProcessor:
         if self.model_type == "t5":
             dataset = dataset.map(self._add_eos_examples)
         
-        dataset = dataset.map(self._add_special_tokens)
+        # dataset = dataset.map(self._add_special_tokens)
         dataset = dataset.map(self._convert_to_features, batched=True)
         
         return dataset
@@ -119,7 +119,8 @@ def process_qg_text(example):
     else:
         answer_text = answer["text"][0].strip()
 
-    que_gen_input = f"answer: {answer_text}  context: {context}"
+    hl_answer = f"<hl>{answer_text}<hl>"
+    que_gen_input = f"{context.replace(answer_text, hl_answer)}"
 
     que_gen_target = f"{question}"
     return {"source_text": que_gen_input, "target_text": que_gen_target}
@@ -171,6 +172,8 @@ def main():
 
     train_dataset = processor.process(train_dataset)
     valid_dataset = processor.process(valid_dataset)
+
+    print(train_dataset.train["source_text"])
 
     columns = ["source_ids", "target_ids", "attention_mask"]
     train_dataset.set_format(type='torch', columns=columns)
