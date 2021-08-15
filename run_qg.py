@@ -177,6 +177,7 @@ def main(args_file=None):
         using_tpu=training_args.tpu_num_cores is not None
     )
     training_args.prediction_loss_only = True
+    training_args.remove_unused_columns = False
     # Initialize our Trainer
     trainer = Trainer(
         model=model,
