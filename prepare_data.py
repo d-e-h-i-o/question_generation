@@ -173,7 +173,7 @@ def main():
     train_dataset = processor.process(train_dataset)
     valid_dataset = processor.process(valid_dataset)
 
-    print(train_dataset.train["source_text"])
+    print(train_dataset[0])
 
     columns = ["source_ids", "target_ids", "attention_mask"]
     train_dataset.set_format(type='torch', columns=columns)
